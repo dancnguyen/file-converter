@@ -1,26 +1,27 @@
 name: Deploy React App
 
 on:
-    push:
-        branches: [main]
-    pull_request:
-        types:
-            - closed
-        branches: [main]
-    workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    types:
+      - closed
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-    
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
@@ -31,8 +32,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          name: 'github-pages'
-          path: build
+          name: github-pages
+          path: dist
 
   deploy:
     if: github.event.pull_request.merged == true || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -48,6 +49,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     runs-on: ubuntu-latest
+
     steps:
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -57,5 +59,4 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          artifact_name: 'github-pages'
-        
+          artifact_name: github-pages
