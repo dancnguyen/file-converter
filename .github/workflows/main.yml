@@ -22,18 +22,21 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+          cache-dependency-path: fileconverter/package-lock.json
 
       - name: Install dependencies
+        working-directory: fileconverter
         run: npm ci
 
       - name: Build
+        working-directory: fileconverter
         run: npm run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           name: github-pages
-          path: dist
+          path: fileconverter/dist
 
   deploy:
     if: github.event.pull_request.merged == true || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
