@@ -1,13 +1,12 @@
-name: Deploy React App
+name: Build and Deploy React App
 
 on:
   push:
     branches: [main]
-  pull_request:
-    types:
-      - closed
-    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -32,34 +31,9 @@ jobs:
         working-directory: fileconverter
         run: npm run build
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy dist to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          name: github-pages
-          path: fileconverter/dist
-
-  deploy:
-    if: github.event.pull_request.merged == true || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    needs: build
-
-    permissions:
-      pages: write
-      id-token: write
-      contents: read
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          artifact_name: github-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: fileconverter/dist
+          publish_branch: gh-pages
