@@ -9,7 +9,6 @@ import NavDrawer from './NavDrawer';
 import HomePage from './pages/HomePage';
 import PdfToEpubPage from './pages/PdfToEpubPage';
 import type { View } from './views';
-import './App.css'
 
 const theme = createTheme({
   colorSchemes: {
