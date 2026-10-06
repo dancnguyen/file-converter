@@ -11,9 +11,9 @@ import { styled } from '@mui/material/styles';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import TransformIcon from '@mui/icons-material/Transform';
 import ImageIcon from '@mui/icons-material/Image';
-import { saveAs } from 'file-saver';
 import { convertPdfToEpub } from '../conversion/pdfToEpub';
 import { createCoverFromPdf } from '../conversion/pdfCover';
+import { chooseSaveLocation } from '../saveFile';
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -113,14 +113,22 @@ export default function PdfToEpubPage() {
     event.preventDefault();
     if (!file || !outputName.trim()) return;
 
-    setConverting(true);
     setStatus(null);
+    let target;
     try {
-      const blob = await convertPdfToEpub(file, cover?.file);
-      const fileName = toEpubFileName(outputName);
-      saveAs(blob, fileName);
+      target = await chooseSaveLocation(toEpubFileName(outputName), { description: 'EPUB e-book', mimeType: 'application/epub+zip', extension: '.epub' });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      setStatus({ severity: 'error', message: `Could not open the save dialog: ${detail}` });
+      return;
+    }
+    if (!target) return;
+
+    setConverting(true);
+    try {
+      await target.save(() => convertPdfToEpub(file, cover?.file));
       resetForm();
-      setStatus({ severity: 'success', message: `Converted and downloaded ${fileName}.` });
+      setStatus({ severity: 'success', message: `Converted and saved ${target.name}.` });
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       setStatus({ severity: 'error', message: `Conversion failed: ${detail}` });

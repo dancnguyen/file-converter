@@ -7,6 +7,7 @@ import ListItemText from '@mui/material/ListItemText';
 import Toolbar from '@mui/material/Toolbar';
 import HomeIcon from '@mui/icons-material/Home';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
+import TabIcon from '@mui/icons-material/Tab';
 import type { View } from './views';
 
 const drawerWidth = 250;
@@ -14,6 +15,7 @@ const drawerWidth = 250;
 const navItems: { view: View; label: string; icon: React.ReactNode }[] = [
   { view: 'home', label: 'Home', icon: <HomeIcon /> },
   { view: 'pdf-to-epub', label: 'PDF to EPUB', icon: <MenuBookIcon /> },
+  { view: 'png-to-favicon', label: 'PNG to Favicon', icon: <TabIcon /> },
 ];
 
 type NavDrawerProps = {

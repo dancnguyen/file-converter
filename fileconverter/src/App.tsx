@@ -8,6 +8,7 @@ import TopNav from './TopNav';
 import NavDrawer from './NavDrawer';
 import HomePage from './pages/HomePage';
 import PdfToEpubPage from './pages/PdfToEpubPage';
+import PngToFaviconPage from './pages/PngToFaviconPage';
 import type { View } from './views';
 
 const theme = createTheme({
@@ -55,6 +56,7 @@ export default function App() {
           <Toolbar />
           {view === 'home' && <HomePage />}
           {view === 'pdf-to-epub' && <PdfToEpubPage />}
+          {view === 'png-to-favicon' && <PngToFaviconPage />}
         </Box>
       </Box>
     </ThemeProvider>
