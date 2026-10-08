@@ -1,3 +1,4 @@
+import type { PDFPageProxy } from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 import type { PageImage } from './pdfImages';
 import { loadPdfjs } from './pdfjs';
@@ -30,8 +31,6 @@ function toParagraphs(items: TextItem[]) {
   return paragraphs;
 }
 
-// Places each image before the first paragraph that starts below the image's top edge,
-// keeping the text in reading order. Images are sized relative to the page width.
 function pageToHtml(paragraphs: Paragraph[], images: PageImage[], pageWidth: number, pageNumber: number) {
   const pending = [...images].sort((a, b) => b.top - a.top);
   const imageHtml = (image: PageImage) => {
@@ -48,9 +47,21 @@ function pageToHtml(paragraphs: Paragraph[], images: PageImage[], pageWidth: num
   return html.join('\n');
 }
 
+async function getTextItems(page: PDFPageProxy) {
+  const reader = page.streamTextContent().getReader();
+  const items: TextItem[] = [];
+  try {
+    for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+      for (const item of chunk.value.items) if ('str' in item) items.push(item);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return items;
+}
+
 const coverExtensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png' };
 
-// epub-gen-memory takes the cover's type from its file name, so give it a name matching its actual type.
 function normalizeCover(cover: File) {
   const extension = coverExtensions[cover.type];
   if (!extension) throw new Error('The cover image must be a JPEG or PNG.');
@@ -58,7 +69,6 @@ function normalizeCover(cover: File) {
 }
 
 function coverPageXhtml(href: string, width: number, height: number) {
-  // An SVG wrapper scales the image to fill the screen while keeping its proportions, across most readers.
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="en" lang="en">
@@ -76,10 +86,6 @@ function coverPageXhtml(href: string, width: number, height: number) {
 `;
 }
 
-// Adds what epub-gen-memory leaves out for the cover:
-// - properties="cover-image" on the image, which EPUB 3 readers such as Apple Books look for
-//   (the library only writes the EPUB 2 style <meta name="cover">);
-// - a cover page at the start of the book, also listed in <guide> for Kindle and older readers.
 async function addCover(epubBlob: Blob, coverSize: { width: number; height: number }): Promise<Blob> {
   const { default: JSZip } = await import('jszip');
   const zip = await JSZip.loadAsync(epubBlob);
@@ -96,7 +102,6 @@ async function addCover(epubBlob: Blob, coverSize: { width: number; height: numb
   zip.file(opfPath, opf);
   zip.file('OEBPS/cover.xhtml', coverPageXhtml(coverHref, coverSize.width, coverSize.height));
 
-  // The EPUB format requires the "mimetype" entry to be first and uncompressed.
   zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
   return zip.generateAsync({ type: 'blob', mimeType: 'application/epub+zip', compression: 'DEFLATE' });
 }
@@ -108,9 +113,6 @@ async function imageSize(file: File) {
   return size;
 }
 
-// Converts each PDF page into its own EPUB chapter: the page's text, split into paragraphs,
-// with its embedded images placed among them. Page layout and vector drawings are not carried over.
-// The cover is `cover` if given, otherwise the PDF's first page; it is also the book's first page.
 export async function convertPdfToEpub(file: File, cover?: File): Promise<Blob> {
   const [pdfjs, epubModule, { createImageCache, extractPageImages, revokeImageUrl }, { renderPageAsCover }] = await Promise.all([
     loadPdfjs(),
@@ -118,7 +120,6 @@ export async function convertPdfToEpub(file: File, cover?: File): Promise<Blob> 
     import('./pdfImages'),
     import('./pdfCover'),
   ]);
-  // The browser bundle is CommonJS, so the generator function can end up nested under a second `default`.
   const imported = epubModule.default as EpubFn | { default: EpubFn };
   const epub = typeof imported === 'function' ? imported : imported.default;
 
@@ -135,10 +136,10 @@ export async function convertPdfToEpub(file: File, cover?: File): Promise<Blob> 
     const chapters = [];
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
       const page = await pdf.getPage(pageNumber);
-      const [{ items }, images] = await Promise.all([page.getTextContent(), extractPageImages(page, imageCache)]);
+      const [items, images] = await Promise.all([getTextItems(page), extractPageImages(page, imageCache)]);
       images.forEach((image) => imageUrls.add(image.url));
 
-      const paragraphs = toParagraphs(items.filter((item): item is TextItem => 'str' in item));
+      const paragraphs = toParagraphs(items);
       const [x0, , x1] = page.view;
       const html = pageToHtml(paragraphs, images, x1 - x0, pageNumber);
       chapters.push({ title: `Page ${pageNumber}`, content: html || '<p></p>' });
